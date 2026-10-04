@@ -1,0 +1,52 @@
+# wordpress + mysql, official images, default config.
+# the wpcli service installs wordpress and adds the 10 test posts, then idles.
+# tested endpoint: GET /?rest_route=/wp/v2/posts&per_page=10
+services:
+  wordpress:
+    image: wordpress:6.8-php8.3-apache
+    ports:
+      - "80:80"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - html:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  wpcli:
+    image: wordpress:cli-php8.3
+    user: "33:33"
+    environment:
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - html:/var/www/html
+      - ./seed.sh:/seed.sh
+    entrypoint: ["sh", "/seed.sh"]
+    depends_on:
+      - wordpress
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  html:
+  db:

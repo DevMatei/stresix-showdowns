@@ -1,0 +1,46 @@
+# ghost + mysql, official images, default production config.
+# the seed service adds the 10 test posts through the admin api and sets a
+# known content api key, then idles.
+# tested endpoint: GET /ghost/api/content/posts/?key=...&limit=10
+services:
+  ghost:
+    image: ghost:6-alpine
+    ports:
+      - "2368:2368"
+    environment:
+      url: http://localhost:2368
+      database__client: mysql
+      database__connection__host: db
+      database__connection__user: root
+      database__connection__password: ghost
+      database__connection__database: ghost
+    volumes:
+      - content:/var/lib/ghost/content
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    image: ghost:6-alpine
+    volumes:
+      - ./seed.js:/seed.js
+    entrypoint: ["node", "/seed.js"]
+    depends_on:
+      - ghost
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ghost
+      MYSQL_DATABASE: ghost
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pghost"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  content:
+  db:

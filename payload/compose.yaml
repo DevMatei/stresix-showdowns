@@ -1,0 +1,33 @@
+# payload + postgres. payload has no official image, so this is payload's own
+# with-postgres template with a posts collection added, built in production
+# mode with the template's Dockerfile, default config.
+# migrations run on boot and onInit adds the 10 test posts.
+# tested endpoint: GET /api/posts?limit=10
+services:
+  payload:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://payload:payload@db:5432/payload
+      PAYLOAD_SECRET: showdown-secret-not-for-prod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: payload
+      POSTGRES_USER: payload
+      POSTGRES_PASSWORD: payload
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "payload"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db:
