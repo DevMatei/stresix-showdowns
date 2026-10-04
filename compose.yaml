@@ -1,0 +1,48 @@
+# directus + postgres, official images, default config.
+# the seed service creates a posts collection, adds the 10 test posts and
+# lets the public role read them, then idles.
+# tested endpoint: GET /items/posts?limit=10
+services:
+  directus:
+    image: directus/directus:11.12
+    ports:
+      - "8055:8055"
+    environment:
+      SECRET: showdown-secret-not-for-prod
+      DB_CLIENT: pg
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_DATABASE: directus
+      DB_USER: directus
+      DB_PASSWORD: directus
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: showdown-admin
+      PUBLIC_URL: http://localhost:8055
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    image: directus/directus:11.12
+    volumes:
+      - ./seed.mjs:/seed.mjs
+    entrypoint: ["node", "/seed.mjs"]
+    depends_on:
+      - directus
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: directus
+      POSTGRES_USER: directus
+      POSTGRES_PASSWORD: directus
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "directus"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  db:
