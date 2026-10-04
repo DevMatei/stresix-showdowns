@@ -1,10 +1,11 @@
 # strapi + postgres. strapi has no official image, so this is a plain
 # create-strapi-app project built in production mode, default config.
+# the image is built from the Dockerfile here by .github/workflows/images.yml.
 # src/index.js adds the 10 test posts and lets the public role read them.
 # tested endpoint: GET /api/posts?pagination[pageSize]=10
 services:
   strapi:
-    build: .
+    image: ghcr.io/devmatei/showdown-strapi:latest
     ports:
       - "1337:1337"
     environment:
