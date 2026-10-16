@@ -1,0 +1,49 @@
+# matomo 5 (official apache image) + mariadb, like matomo's own docker example, nothing tuned.
+# the seed service clicks through the web installer (database, super user, first
+# website = idsite 1), then idles.
+# tested endpoint: POST /matomo.php (a pageview, sent with a normal browser user agent)
+services:
+  matomo:
+    image: matomo:5-apache
+    ports:
+      - "8080:80"
+    environment:
+      MATOMO_DATABASE_HOST: db
+      MATOMO_DATABASE_ADAPTER: mysql
+      MATOMO_DATABASE_TABLES_PREFIX: matomo_
+      MATOMO_DATABASE_USERNAME: matomo
+      MATOMO_DATABASE_PASSWORD: matomo
+      MATOMO_DATABASE_DBNAME: matomo
+    volumes:
+      - matomo:/var/www/html
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    image: matomo:5-apache
+    volumes:
+      - ./seed.sh:/seed.sh
+    entrypoint: ["sh", "/seed.sh"]
+    depends_on:
+      - matomo
+
+  db:
+    image: mariadb:11.4
+    command: --max-allowed-packet=64MB
+    environment:
+      MARIADB_ROOT_PASSWORD: matomo
+      MARIADB_DATABASE: matomo
+      MARIADB_USER: matomo
+      MARIADB_PASSWORD: matomo
+    volumes:
+      - db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+volumes:
+  matomo:
+  db:
