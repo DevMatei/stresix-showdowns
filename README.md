@@ -73,4 +73,24 @@ the user agent is a normal chrome one with the virtual user's number as the majo
 gives one visitor per virtual user instead of one giant visitor. i checked that on a test box first: 4 new
 user agents made 4 new visitors in each app, and every event landed in the database.
 
-**results:** the runs are going now, the numbers land here when they finish.
+### analytics results
+
+| app | held about | p95 at 100 to 300 users | errors | what ran out first |
+| --- | --- | --- | --- | --- |
+| plausible ce 3.2 | climbed with the load to 2,250 to 2,290 events/s | 534 ms | none at all | all 4 cores (the erlang vm spreads across them), clickhouse barely used |
+| umami 3.4 | 134 to 138 events/s | 1.8 s | timeouts from ~1,350 users, 36% overall | one node thread, box ~50% busy, postgres at 0.7 cores |
+| matomo 5.14 | 115 to 160 events/s | 1.7 s | timeouts from ~315 users, 37% overall | all 4 cores on apache + php, mariadb at 0.4 cores |
+
+the short version: plausible took about 15x what the other two did and never returned an error. umami and matomo
+ended up close on throughput for opposite reasons: umami stalled on one core with half the server idle, matomo used
+every core and was still slow per event.
+
+notes on this one:
+- right after the seed, plausible answers `202` with an `x-plausible-dropped` header for about 30 s while it loads
+  the new site, and matomo ran 10x faster in the first minute than at any point after it, which lines up with its
+  install still finishing. so the first minute (under ~100 users) is left out for both. the raw stresix report for
+  plausible counts that minute, so ignore the ~9,200 rps ceiling it shows.
+- this only measures taking events in. dashboards and reports (matomo's archiving, umami's and plausible's queries)
+  are a separate load and weren't tested.
+- matomo's documented way to scale tracking is the queued tracking plugin with redis, and umami would likely do better
+  with more than one node process since half the box sat idle. neither was added, same rule as above.
