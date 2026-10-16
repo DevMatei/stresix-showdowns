@@ -29,7 +29,19 @@ the stock `create-strapi-app` project and payload's `with-postgres` template, bu
 
 ## results
 
-coming soon.
+full write up with the caveats: [stresix.com/reports/cms-load-test](https://stresix.com/reports/cms-load-test/)
+
+| cms | held about | p95 under 100 users | errors | what ran out first |
+| --- | --- | --- | --- | --- |
+| payload 3 | 360 to 490 rps (peak 547) | 160 ms | none | one node thread, box ~40% busy |
+| strapi 5 | 260 to 290 rps | 240 ms | none, but p95 near 10 s by the end | one node thread, box ~40% busy |
+| directus 11 | 175 to 220 rps | 320 ms | fast 503s from ~1,250 users (built in pressure limiter) | one node thread, box ~35 to 40% busy |
+| ghost 6 | 100 to 115 rps | 560 ms | 429s from ~3.5 min in (all load comes from one ip) | one node thread, box ~37% busy |
+| wordpress 6.8 | 75 to 78 rps | 950 ms | 71% timed out after 10 s | all 4 cores at 100% from the first second |
+
+the short version: the four node cmses each maxed out one core and left about 60% of the server idle, so a bigger
+server won't help them until they run more processes. wordpress was the only one that used every core, and it was
+still the slowest.
 
 ## notes on fairness
 
