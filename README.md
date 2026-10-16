@@ -8,7 +8,7 @@ every app gets the same server, the same load and the same job, so the only thin
 **the job:** serve the public "list posts" api with 10 identical posts in it.
 
 **the setup (same for all 5):**
-- one fresh hetzner cx33 (4 shared vcpu, 8 gb ram, about $8/month)
+- one fresh hetzner cx33 (4 shared vcpu, 8 gb ram, about $10/month)
 - the app plus its usual database in one docker compose stack, default production config, no caching added
 - 10 identical posts, seeded on first boot
 - 2,500 virtual users ramping up over 10 minutes, all hitting the endpoint below
