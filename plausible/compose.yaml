@@ -1,0 +1,68 @@
+# plausible community edition v3 + postgres + clickhouse, the official ce compose file
+# (same images, same clickhouse config files), nothing tuned.
+# the seed service creates one user and the site "showdown.test", then idles.
+# tested endpoint: POST /api/event (a pageview, sent with a normal browser user agent)
+services:
+  plausible:
+    image: ghcr.io/plausible/community-edition:v3.2.1
+    command: sh -c "/entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh run"
+    ports:
+      - "8000:8000"
+    environment:
+      TMPDIR: /var/lib/plausible/tmp
+      BASE_URL: http://localhost:8000
+      HTTP_PORT: "8000"
+      # a public test value, fine for a throwaway benchmark box
+      SECRET_KEY_BASE: showdown-not-a-secret-showdown-not-a-secret-showdown-not-a-secret-00
+      DATABASE_URL: postgres://postgres:postgres@plausible_db:5432/plausible_db
+      CLICKHOUSE_DATABASE_URL: http://plausible_events_db:8123/plausible_events_db
+    volumes:
+      - plausible-data:/var/lib/plausible
+    depends_on:
+      plausible_db:
+        condition: service_healthy
+      plausible_events_db:
+        condition: service_healthy
+
+  seed:
+    image: postgres:16-alpine
+    volumes:
+      - ./seed.sh:/seed.sh
+    entrypoint: ["sh", "/seed.sh"]
+    environment:
+      PGPASSWORD: postgres
+    depends_on:
+      - plausible
+
+  plausible_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      start_period: 1m
+
+  plausible_events_db:
+    image: clickhouse/clickhouse-server:24.12-alpine
+    environment:
+      CLICKHOUSE_SKIP_USER_SETUP: "1"
+    volumes:
+      - event-data:/var/lib/clickhouse
+      - event-logs:/var/log/clickhouse-server
+      - ./clickhouse/logs.xml:/etc/clickhouse-server/config.d/logs.xml:ro
+      - ./clickhouse/ipv4-only.xml:/etc/clickhouse-server/config.d/ipv4-only.xml:ro
+      - ./clickhouse/low-resources.xml:/etc/clickhouse-server/config.d/low-resources.xml:ro
+      - ./clickhouse/default-profile-low-resources-overrides.xml:/etc/clickhouse-server/users.d/default-profile-low-resources-overrides.xml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 -O - http://127.0.0.1:8123/ping || exit 1"]
+      interval: 5s
+      start_period: 1m
+
+volumes:
+  plausible-data:
+  db-data:
+  event-data:
+  event-logs:

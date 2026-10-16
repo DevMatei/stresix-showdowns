@@ -49,3 +49,28 @@ still the slowest.
   that's part of what you get out of the box, so it's left as is.
 - nobody gets tuned. no php-fpm tweaks, no node cluster mode, no redis, no cdn. this is "i installed it and shipped it".
 - if you think a setup is wrong or unfair, open an issue or a pr and i'll rerun it.
+
+## analytics showdown: umami vs plausible vs matomo
+
+**the job:** take in pageviews. every request is one pageview sent to the app's own collect endpoint, the same
+call its tracking script makes from a visitor's browser.
+
+**the setup (same for all 3):**
+- one fresh hetzner cx33 (4 shared vcpu, 8 gb ram, about $10/month)
+- the app plus its usual databases in one docker compose stack, based on each project's own compose example, nothing tuned
+- one site, created on first boot by the seed service
+- 2,500 virtual users ramping up over 10 minutes, each one a separate visitor (its own browser user agent)
+  sending pageviews back to back
+
+| app | branch | databases | endpoint |
+| --- | --- | --- | --- |
+| umami 3.4 | [`umami`](../../tree/umami) | postgres 15 | `POST /api/send` |
+| plausible ce 3.2 | [`plausible`](../../tree/plausible) | postgres 16 + clickhouse 24.12 | `POST /api/event` |
+| matomo 5.14 | [`matomo`](../../tree/matomo) | mariadb 11.4 | `POST /matomo.php` |
+
+the user agent is a normal chrome one with the virtual user's number as the major version
+(`Chrome/{{vu}}.0.0.0`). all three apps build their visitor id from the ip and the browser, so this
+gives one visitor per virtual user instead of one giant visitor. i checked that on a test box first: 4 new
+user agents made 4 new visitors in each app, and every event landed in the database.
+
+**results:** the runs are going now, the numbers land here when they finish.
